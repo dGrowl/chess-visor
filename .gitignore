@@ -1,11 +1,14 @@
 **/__pycache__/
 /.ipynb_checkpoints
+/.venv
 /.vscode
 
-/engine
 /build
 /dist
+/engine
 /release
 
 .pylintrc
+.python-version
+
 settings.toml
