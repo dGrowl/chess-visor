@@ -1,0 +1,11 @@
+**/__pycache__/
+/.ipynb_checkpoints
+/.vscode
+
+/engine
+/build
+/dist
+/release
+
+.pylintrc
+settings.toml
