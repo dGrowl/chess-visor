@@ -147,12 +147,13 @@ class BoardDetector:
             )
             vertical_lines = find_lines(screenshot_t)
             n_lines = len(vertical_lines)
-            square = find_square(vertical_lines)
-            if square_is_valid(square) and n_lines < self.optimal_n_lines:
-                self.optimal_bound_index = self.bound_index
-                self.optimal_n_lines = n_lines
-                self.dark_bound = dark_bound
-                self.light_bound = light_bound
+            if n_lines < 128:
+                square = find_square(vertical_lines)
+                if square_is_valid(square) and n_lines < self.optimal_n_lines:
+                    self.optimal_bound_index = self.bound_index
+                    self.optimal_n_lines = n_lines
+                    self.dark_bound = dark_bound
+                    self.light_bound = light_bound
             self.bound_index += 1
 
     def detect(self, screenshot):
