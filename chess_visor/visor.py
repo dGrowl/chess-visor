@@ -1,4 +1,4 @@
-from PySide6.QtCore import QCoreApplication, QRect, QObject, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QRect, QObject, Qt, Signal, Slot
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 from PySide6.QtGui import QBrush, QColor, QGradient, QIcon, QPainter, QPixmap
 import keyboard
@@ -11,10 +11,9 @@ from .settings import Settings, SettingsWindow
 from .utility import is_valid_hotkey
 
 def draw_icon_background(pixmap, brush):
-    transparent = QColor(0, 0, 0, 0)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.Antialiasing)
-    painter.setPen(transparent)
+    painter.setPen(Qt.transparent)
     painter.setBrush(brush)
     icon_offset = 2
     painter.drawRoundedRect(
@@ -55,8 +54,7 @@ def draw_icon_chessboard(pixmap):
 
 def generate_icon(size, background_brush):
     pixmap = QPixmap(size, size)
-    transparent = QColor(0, 0, 0, 0)
-    pixmap.fill(transparent)
+    pixmap.fill(Qt.transparent)
     draw_icon_background(pixmap, background_brush)
     draw_icon_chessboard(pixmap)
     return QIcon(pixmap)
