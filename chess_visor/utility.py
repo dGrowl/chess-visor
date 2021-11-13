@@ -21,8 +21,15 @@ def increment_key(d, k):
     else:
         d[k] += 1
 
-def sort_on_column(array, j, reverse=False):
-    return sorted(array, key=lambda entry: entry[j], reverse=reverse)
+def is_even(x):
+    return (x % 2) == 0
+
+def is_valid_hotkey(hotkey):
+    try:
+        keyboard.parse_hotkey(hotkey)
+    except ValueError:
+        return False
+    return True
 
 def shift_to_front(array, i):
     if i != 0:
