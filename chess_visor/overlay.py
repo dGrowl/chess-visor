@@ -110,6 +110,7 @@ class Overlay(QMainWindow):
                 active_screen = screen
                 break
         self.screen_rect = active_screen.availableGeometry()
+        self.coordinate_modifier = 1 / active_screen.devicePixelRatio()
         self.setGeometry(self.screen_rect)
         if self.scene is not None:
             self.scene.setSceneRect(self.screen_rect)
@@ -212,6 +213,11 @@ class Overlay(QMainWindow):
             y_from = y_board + rank_from * tile_h + half_tile_h
             x_to = x_board + file_to * tile_w + half_tile_w
             y_to = y_board + rank_to * tile_h + half_tile_h
+            if self.coordinate_modifier != 1:
+                x_from *= self.coordinate_modifier
+                y_from *= self.coordinate_modifier
+                x_to *= self.coordinate_modifier
+                y_to *= self.coordinate_modifier
             piece = self.tile_labels[rank_from, file_from]
             color = chess.WHITE if is_white_piece(piece) else chess.BLACK
             mapped_moves.append(OverlayMove(x_from, y_from, x_to, y_to, color, move.to_label))

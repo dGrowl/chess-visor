@@ -32,38 +32,32 @@ def shift_to_front(array, i):
         return array_t
     return array
 
-def is_valid_hotkey(hotkey):
-    try:
-        keyboard.parse_hotkey(hotkey)
-    except ValueError:
-        return False
-    return True
-
-def is_even(x):
-    return (x % 2) == 0
+def sort_on_column(array, j, reverse=False):
+    return sorted(array, key=lambda entry: entry[j], reverse=reverse)
 
 class Screenshotter:
     def __init__(self):
         self.capture_tool = mss()
-        self.screen_rects = dict()
+        self.screen_regions = dict()
         for screen in QGuiApplication.screens():
             screen_rect = screen.geometry()
+            screen_pixel_ratio = screen.devicePixelRatio()
             screen_geometry = {
                 "left": screen_rect.left(),
                 "top": screen_rect.top(),
-                "width": screen_rect.width(),
-                "height": screen_rect.height()
+                "width": int(screen_rect.width() * screen_pixel_ratio),
+                "height": int(screen_rect.height() * screen_pixel_ratio)
             }
-            self.screen_rects[screen.name()] = screen_geometry
+            self.screen_regions[screen.name()] = screen_geometry
 
     def shot(self, screen_name):
-        screen_rect = self.screen_rects[screen_name]
+        screen_region = self.screen_regions[screen_name]
         screen_dimensions = (
-            screen_rect["height"],
-            screen_rect["width"],
+            screen_region["height"],
+            screen_region["width"],
             3
         )
-        screenshot = self.capture_tool.grab(screen_rect).rgb
+        screenshot = self.capture_tool.grab(screen_region).rgb
         screenshot = np.frombuffer(screenshot, dtype=np.uint8)
         screenshot = screenshot.reshape(screen_dimensions)
         return screenshot
