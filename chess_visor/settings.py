@@ -391,6 +391,9 @@ class SettingsWindow(QWidget):
         self.height_spinbox.setMaximum(height_constraint)
 
     def draw_board_preview(self):
+        if self.active_screenshot is None:
+            return
+
         padded_width = self.active_screenshot.width() + SettingsWindow.PreviewPaddingx2
         padded_height = self.active_screenshot.height() + SettingsWindow.PreviewPaddingx2
         preview_canvas = QPixmap(padded_width, padded_height)
