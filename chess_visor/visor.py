@@ -212,8 +212,10 @@ class Visor(QObject):
     def finish(self):
         self.overlay.hide()
         self.tray_icon.hide()
-        self.close_settings_window()
         self.observer.stop()
-        self.observer.wait()
         self.analyzer.stop()
+        if self.settings_window is not None:
+            self.settings_window.close()
+        self.observer.wait()
+        self.analyzer.wait()
         QCoreApplication.quit()

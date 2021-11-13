@@ -88,6 +88,7 @@ class Analyzer(QObject):
             return
         if len(self.workers) != 0:
             self.stop()
+            self.wait()
         for _ in range(self.engine_process_count):
             worker = EngineThread(self.analysis_queue, self.engine_path)
             worker.new_move.connect(self.job_completed)
@@ -97,6 +98,8 @@ class Analyzer(QObject):
     def stop(self):
         for worker in self.workers:
             worker.set_alive(False)
+
+    def wait(self):
         for worker in self.workers:
             worker.wait()
         self.workers.clear()
@@ -112,6 +115,7 @@ class Analyzer(QObject):
             settings_changed = True
         if settings_changed:
             self.stop()
+            self.wait()
             self.start()
 
     def get_batch_id(self):
