@@ -36,7 +36,7 @@ def find_lines(image):
         threshold=500,
         line_gap=8,
         line_length=375,
-        theta=np.array([0., 0.])
+        theta=np.zeros(1)
     )
 
 def lines_are_similar(line_a, line_b):
