@@ -12,23 +12,21 @@ from skimage.filters import sobel
 from skimage.transform import probabilistic_hough_line
 import numpy as np
 
-from .utility import Screenshotter, shift_to_front
+from .utility import Screenshotter, shift_to_front, shuffle_deterministic
 from .tile_classification import TileClassifier, extract_tiles_from_screenshot
 
 def squared_distance(point_a, point_b):
     return (point_b[0] - point_a[0])**2 + (point_b[1] - point_a[1])**2
 
-def contrast_transform(screen, dark_range, light_range):
-    screen_t = np.array(screen)
-    screen_t = rgb2gray(screen_t)
-    screen_t = img_as_float(screen_t)
-    screen_dark = rescale_intensity(screen_t, in_range=dark_range)
-    screen_light = rescale_intensity(screen_t, in_range=light_range)
-    screen_t = screen_dark - screen_light
-    screen_t = sobel(screen_t)
-    screen_t /= max(screen_t.max(), 1e-15)
-    screen_t = np.where(screen_t > .1, 1., 0.)
-    return screen_t
+def contrast_transform(screenshot, contrast_range):
+    screenshot_t = np.array(screenshot)
+    screenshot_t = rgb2gray(screenshot_t)
+    screenshot_t = img_as_float(screenshot_t)
+    screenshot_t = rescale_intensity(screenshot_t, in_range=contrast_range)
+    screenshot_t = sobel(screenshot_t)
+    screenshot_t /= max(screenshot_t.max(), 1e-15)
+    screenshot_t = np.where(screenshot_t > .1, 1., 0.)
+    return screenshot_t
 
 def find_lines(image):
     return probabilistic_hough_line(
@@ -106,23 +104,32 @@ def square_is_valid(square):
 
 class BoardDetector:
     def __init__(self):
-        self.bound_space = np.mgrid[.1:1:.2, .1:1:.2].T.reshape(25, 2)
-        rng = np.random.default_rng(seed=7)
-        rng.shuffle(self.bound_space)
+        self.bound_space = []
+        upper_bounds = np.array([.2, .3, .5, .6, .9, 1.])
+        for upper_bound in upper_bounds:
+            lower_bounds = np.linspace(
+                max(0, upper_bound - .3),
+                upper_bound,
+                4,
+                endpoint=False
+            )
+            for lower_bound in lower_bounds:
+                self.bound_space.append((lower_bound, upper_bound))
+        shuffle_deterministic(self.bound_space, 7)
         self.prior_confidence_fail = False
 
         self.set_default_bounds()
 
     def set_default_bounds(self):
         self.bound_index = 0
-        self.dark_bound, self.light_bound = self.bound_space[0]
+        self.contrast_range = self.bound_space[0]
         self.optimal_bound_index = 0
         self.optimal_n_lines = np.inf
 
     def reset_search(self):
         if self.bound_index == len(self.bound_space):
             if self.optimal_n_lines != np.inf:
-                self.bound_space = shift_to_front(self.bound_space, self.optimal_bound_index)
+                shift_to_front(self.bound_space, self.optimal_bound_index)
             self.set_default_bounds()
             self.prior_confidence_fail = False
         else:
@@ -139,12 +146,8 @@ class BoardDetector:
 
     def search_bounds(self, screenshot):
         if self.bound_index < len(self.bound_space):
-            dark_bound, light_bound = self.bound_space[self.bound_index]
-            screenshot_t = contrast_transform(
-                screenshot,
-                (dark_bound, 1),
-                (0, light_bound)
-            )
+            contrast_range = self.bound_space[self.bound_index]
+            screenshot_t = contrast_transform(screenshot, contrast_range)
             vertical_lines = find_lines(screenshot_t)
             n_lines = len(vertical_lines)
             if n_lines < 128:
@@ -152,16 +155,11 @@ class BoardDetector:
                 if square_is_valid(square) and n_lines < self.optimal_n_lines:
                     self.optimal_bound_index = self.bound_index
                     self.optimal_n_lines = n_lines
-                    self.dark_bound = dark_bound
-                    self.light_bound = light_bound
+                    self.contrast_range = contrast_range
             self.bound_index += 1
 
     def detect(self, screenshot):
-        screenshot_t = contrast_transform(
-            screenshot,
-            (self.dark_bound, 1),
-            (0, self.light_bound)
-        )
+        screenshot_t = contrast_transform(screenshot, self.contrast_range)
         vertical_lines = find_lines(screenshot_t)
         n_lines = len(vertical_lines)
         square = find_square(vertical_lines)
