@@ -15,6 +15,10 @@ def array_to_pixmap(array):
     pixmap = QPixmap(image)
     return pixmap
 
+def shuffle_deterministic(array_like, seed):
+    rng = np.random.default_rng(seed=seed)
+    rng.shuffle(array_like)
+
 def increment_key(d, k):
     if k not in d:
         d[k] = 1
