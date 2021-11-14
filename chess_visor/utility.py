@@ -37,11 +37,9 @@ def is_valid_hotkey(hotkey):
 
 def shift_to_front(array, i):
     if i != 0:
-        i_t = (i + 1) % len(array)
-        array_t = np.roll(array, 1, axis=0)
-        array_t[[i_t, 0]] = array_t[[0, i_t]]
-        return array_t
-    return array
+        item = array[i]
+        array[1:i + 1] = array[0:i]
+        array[0] = item
 
 def sort_on_column(array, j, reverse=False):
     return sorted(array, key=lambda entry: entry[j], reverse=reverse)
