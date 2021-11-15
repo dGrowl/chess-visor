@@ -452,11 +452,11 @@ class TileClassifier:
             self.model.save(TileClassifier.ModelName)
 
     def predict(self, X):
-        labels_predicted = self.model.predict(X)
-        labels_probability = labels_predicted.max(axis=1).reshape(8, 8)
-        lowest_probability = labels_probability.min()
-        if lowest_probability < TileClassifier.ConfidenceThreshold:
+        Y_probabilistic = self.model.predict(X)
+        highest_probabilities = Y_probabilistic.max(axis=1)
+        least_high_probability = highest_probabilities.min()
+        if least_high_probability < TileClassifier.ConfidenceThreshold:
             return None
-        Y = np.argmax(labels_predicted, axis=-1)
+        Y = np.argmax(Y_probabilistic, axis=-1)
         Y = TILE_LABELS[Y]
         return Y.reshape(8, 8)
