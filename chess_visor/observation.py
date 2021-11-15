@@ -37,18 +37,18 @@ def find_lines(image):
         theta=np.zeros(1)
     )
 
-def lines_are_similar(line_a, line_b):
+def lines_are_similar(line_a, line_b, threshold=36):
     distance = squared_distance(line_a[0], line_b[0])
-    if distance > 36:
+    if distance > threshold:
         return False
     distance = squared_distance(line_a[1], line_b[1])
-    if distance > 36:
+    if distance > threshold:
         return False
     return True
 
-def find_match(line_a, match_group):
+def find_match(line_a, match_group, threshold=36):
     for line_b in match_group:
-        if lines_are_similar(line_a, line_b):
+        if lines_are_similar(line_a, line_b, threshold):
             return True
     return False
 
