@@ -46,7 +46,7 @@ def lines_are_similar(line_a, line_b, threshold=36):
         return False
     return True
 
-def find_match(line_a, match_group, threshold=36):
+def find_matching_line(line_a, match_group, threshold=36):
     for line_b in match_group:
         if lines_are_similar(line_a, line_b, threshold):
             return True
@@ -62,7 +62,7 @@ def merge_similar_lines(lines):
     groups_of_similar_lines = []
     for line_a in lines:
         for match_group in groups_of_similar_lines:
-            if find_match(line_a, match_group):
+            if find_matching_line(line_a, match_group):
                 match_group.append(line_a)
                 break
         else:
@@ -71,7 +71,7 @@ def merge_similar_lines(lines):
     averaged_lines = np.zeros((len(groups_of_similar_lines), 2, 2))
     for i, matched_lines in enumerate(groups_of_similar_lines):
         averaged_lines[i] = average_lines(matched_lines)
-    averaged_lines = averaged_lines[averaged_lines[:,0,0].argsort()]
+    averaged_lines = averaged_lines[averaged_lines[:, 0, 0].argsort()]
     return averaged_lines.tolist()
 
 def find_target_line(target_line, sorted_lines):
@@ -81,6 +81,17 @@ def find_target_line(target_line, sorted_lines):
         if line[0][0] < target_line[0][0]:
             break
     return None
+
+def crop_image_near_line(image, line):
+    left = max(0, line[0][0] - 4)
+    right = min(image.shape[1], line[0][0] + 5)
+    top = max(0, line[1][1] - 4)
+    bottom = min(image.shape[0], line[0][1] + 5)
+    line[0][0] -= left
+    line[1][0] -= left
+    line[0][1] -= top
+    line[1][1] -= top
+    return image[top:bottom, left:right]
 
 def find_square(vertical_lines):
     merged_lines = merge_similar_lines(vertical_lines)
@@ -101,10 +112,16 @@ def find_square(vertical_lines):
 
 def square_is_valid(square):
     return square is not None and square.height() >= 256
-
 class BoardDetector:
     def __init__(self):
-        self.bound_space = []
+        self.board_rect = None
+        self.prior_confidence_fail = False
+
+        self.init_possible_ranges()
+        self.set_default_bounds()
+
+    def init_possible_ranges(self):
+        self.possible_ranges = []
         upper_bounds = np.array([.2, .3, .5, .6, .9, 1.])
         for upper_bound in upper_bounds:
             lower_bounds = np.linspace(
@@ -114,22 +131,25 @@ class BoardDetector:
                 endpoint=False
             )
             for lower_bound in lower_bounds:
-                self.bound_space.append((lower_bound, upper_bound))
-        shuffle_deterministic(self.bound_space, 7)
-        self.prior_confidence_fail = False
-
-        self.set_default_bounds()
+                self.possible_ranges.append((lower_bound, upper_bound))
+        shuffle_deterministic(self.possible_ranges, 7)
 
     def set_default_bounds(self):
-        self.bound_index = 0
-        self.contrast_range = self.bound_space[0]
-        self.optimal_bound_index = 0
+        self.range_index = 0
+        self.contrast_range = self.possible_ranges[0]
+        self.optimal_range_index = 0
         self.optimal_n_lines = np.inf
 
-    def reset_search(self):
-        if self.bound_index == len(self.bound_space):
+    def get_board(self, screenshot):
+        if not self.validate(screenshot):
+            self.board_rect = None
+            self.detect(screenshot)
+        return self.board_rect
+
+    def reset_range_search(self):
+        if self.range_index == len(self.possible_ranges):
             if self.optimal_n_lines != np.inf:
-                shift_to_front(self.bound_space, self.optimal_bound_index)
+                shift_to_front(self.possible_ranges, self.optimal_range_index)
             self.set_default_bounds()
             self.prior_confidence_fail = False
         else:
@@ -140,36 +160,60 @@ class BoardDetector:
             self.prior_confidence_fail = False
         else:
             if self.prior_confidence_fail:
-                self.reset_search()
+                self.board_rect = None
+                self.reset_range_search()
             else:
                 self.prior_confidence_fail = True
 
-    def search_bounds(self, screenshot):
-        if self.bound_index < len(self.bound_space):
-            contrast_range = self.bound_space[self.bound_index]
+    def search_ranges(self, screenshot):
+        if self.range_index < len(self.possible_ranges):
+            contrast_range = self.possible_ranges[self.range_index]
             screenshot_t = contrast_transform(screenshot, contrast_range)
             vertical_lines = find_lines(screenshot_t)
             n_lines = len(vertical_lines)
             if n_lines < 128:
                 square = find_square(vertical_lines)
                 if square_is_valid(square) and n_lines < self.optimal_n_lines:
-                    self.optimal_bound_index = self.bound_index
+                    self.optimal_range_index = self.range_index
                     self.optimal_n_lines = n_lines
                     self.contrast_range = contrast_range
-            self.bound_index += 1
+            self.range_index += 1
+
+    def validate(self, screenshot):
+        if self.board_rect is None:
+            return False
+
+        left_line = [
+            [self.board_rect.left(), self.board_rect.bottom()],
+            [self.board_rect.left(), self.board_rect.top()]
+        ]
+        left_line_region = crop_image_near_line(screenshot, left_line)
+        left_line_region = contrast_transform(left_line_region, self.contrast_range)
+        screenshot_lines = find_lines(left_line_region)
+        if not find_matching_line(left_line, screenshot_lines, 4):
+            return False
+
+        right_line = [
+            [self.board_rect.right(), self.board_rect.bottom()],
+            [self.board_rect.right(), self.board_rect.top()]
+        ]
+        right_line_region = crop_image_near_line(screenshot, right_line)
+        right_line_region = contrast_transform(right_line_region, self.contrast_range)
+        screenshot_lines = find_lines(right_line_region)
+        return find_matching_line(right_line, screenshot_lines, 4)
 
     def detect(self, screenshot):
         screenshot_t = contrast_transform(screenshot, self.contrast_range)
         vertical_lines = find_lines(screenshot_t)
         n_lines = len(vertical_lines)
         square = find_square(vertical_lines)
-        self.search_bounds(screenshot)
+        self.search_ranges(screenshot)
         if square_is_valid(square):
             if n_lines < self.optimal_n_lines:
                 self.optimal_n_lines = n_lines
         else:
             square = None
-        return square
+        self.board_rect = square
 
 class Observer(QThread):
     updated_board_rect = Signal(QRect)
@@ -262,7 +306,7 @@ class Observer(QThread):
 
     def detect_board(self, screenshot):
         if self.get_auto_board_detect():
-            board_rect = self.board_detector.detect(screenshot)
+            board_rect = self.board_detector.get_board(screenshot)
             if board_rect is None:
                 self.found_chessboard = False
             return board_rect
