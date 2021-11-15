@@ -302,12 +302,6 @@ def extract_tiles_from_synthetic_board(board):
     return tiles
 
 def extract_tiles_from_screenshot(screenshot, board_rect):
-    if len(screenshot.shape) > 2:
-        if screenshot.shape[2] == 4:
-            screenshot = rgba2rgb(screenshot)
-            screenshot = rgb2gray(screenshot)
-        elif screenshot.shape[2] == 3:
-            screenshot = rgb2gray(screenshot)
     tiles = np.zeros((64, 40, 40))
     tile_h = board_rect.height() / 8
     tile_w = board_rect.width() / 8

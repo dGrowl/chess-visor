@@ -19,9 +19,7 @@ def squared_distance(point_a, point_b):
     return (point_b[0] - point_a[0])**2 + (point_b[1] - point_a[1])**2
 
 def contrast_transform(screenshot, contrast_range):
-    screenshot_t = np.array(screenshot)
-    screenshot_t = rgb2gray(screenshot_t)
-    screenshot_t = img_as_float(screenshot_t)
+    screenshot_t = img_as_float(screenshot)
     screenshot_t = rescale_intensity(screenshot_t, in_range=contrast_range)
     screenshot_t = sobel(screenshot_t)
     screenshot_t /= max(screenshot_t.max(), 1e-15)
@@ -330,6 +328,7 @@ class Observer(QThread):
             if not self.get_active():
                 continue
             screenshot = self.screenshotter.shot(self.active_screen_name)
+            screenshot = rgb2gray(screenshot)
             board_rect = self.detect_board(screenshot)
             if self.get_auto_board_detect():
                 self.set_board_rect_auto(board_rect)
