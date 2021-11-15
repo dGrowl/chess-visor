@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QApplication
 
 from chess_visor.visor import Visor
 
-if __name__ == "__main__":
+def main():
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.Round
@@ -16,3 +16,6 @@ if __name__ == "__main__":
     visor = Visor()
     visor.start()
     qapp.exec()
+
+if __name__ == "__main__":
+    main()
