@@ -488,15 +488,7 @@ class SettingsWindow(QWidget):
     def set_all_spinbox_maxima(self):
         self.set_left_spinbox_maximum()
         self.set_top_spinbox_maximum()
-        width_constraint = self.active_screen_width - self.settings.board_rect_manual.left()
-        height_constraint = self.active_screen_height - self.settings.board_rect_manual.top()
-        if self.dims_constrained:
-            if width_constraint > height_constraint:
-                width_constraint = height_constraint
-            else:
-                height_constraint = width_constraint
-        self.width_spinbox.setMaximum(width_constraint)
-        self.height_spinbox.setMaximum(height_constraint)
+        self.set_dimension_spinbox_maxima()
 
     def set_left_spinbox_maximum(self):
         left_constraint = self.active_screen_width - self.settings.board_rect_manual.width()
@@ -506,21 +498,16 @@ class SettingsWindow(QWidget):
         top_constraint = self.active_screen_height - self.settings.board_rect_manual.height()
         self.top_spinbox.setMaximum(top_constraint)
 
-    def set_width_spinbox_maximum(self):
+    def set_dimension_spinbox_maxima(self):
         width_constraint = self.active_screen_width - self.settings.board_rect_manual.left()
         height_constraint = self.active_screen_height - self.settings.board_rect_manual.top()
-        if self.dims_constrained and width_constraint > height_constraint:
-            self.width_spinbox.setMaximum(height_constraint)
-        else:
-            self.width_spinbox.setMaximum(width_constraint)
-
-    def set_height_spinbox_maximum(self):
-        width_constraint = self.active_screen_width - self.settings.board_rect_manual.left()
-        height_constraint = self.active_screen_height - self.settings.board_rect_manual.top()
-        if self.dims_constrained and height_constraint > width_constraint:
-            self.height_spinbox.setMaximum(width_constraint)
-        else:
-            self.height_spinbox.setMaximum(height_constraint)
+        if self.dims_constrained:
+            if width_constraint > height_constraint:
+                width_constraint = height_constraint
+            else:
+                height_constraint = width_constraint
+        self.width_spinbox.setMaximum(width_constraint)
+        self.height_spinbox.setMaximum(height_constraint)
 
     def set_board_controls_enabled(self, should_enable):
         self.dim_constraint_checkbox.setEnabled(should_enable)
@@ -534,7 +521,7 @@ class SettingsWindow(QWidget):
         self.unsaved_changes = True
         self.settings.board_rect_manual.moveLeft(x)
         self.updated_manual_rect.emit(self.settings.board_rect_manual)
-        self.set_width_spinbox_maximum()
+        self.set_dimension_spinbox_maxima()
         self.draw_board_preview()
 
     @Slot(int)
@@ -542,7 +529,7 @@ class SettingsWindow(QWidget):
         self.unsaved_changes = True
         self.settings.board_rect_manual.moveTop(y)
         self.updated_manual_rect.emit(self.settings.board_rect_manual)
-        self.set_height_spinbox_maximum()
+        self.set_dimension_spinbox_maxima()
         self.draw_board_preview()
 
     @Slot(int)
