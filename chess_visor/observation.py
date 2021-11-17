@@ -280,6 +280,7 @@ class Observer(QThread):
 
     def set_auto_board_detect(self, should_auto_detect):
         with QWriteLocker(self.access_lock):
+            self.board_rect_modified = True
             self.auto_board_detect = should_auto_detect
 
     def get_board_rect_auto(self):
