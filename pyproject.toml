@@ -6,14 +6,14 @@ authors = ["Derek G <45305531+dGrowl@users.noreply.github.com>"]
 
 [tool.poetry.dependencies]
 python = ">=3.7, <3.10"
-PySide6 = "^6.1.2"
-chess = "^1.6.1"
+PySide6 = "^6.2.1"
+chess = "^1.7.0"
 numpy = ">=1.19.2, <1.20.0"
-pytomlpp = "^1.0.3"
+pytomlpp = "^1.0.6"
 mss = "^6.1.0"
 scikit-image = "^0.18.3"
 Pillow = "^8.4.0"
-tensorflow = "^2.6.0"
+tensorflow = "^2.7.0"
 keyboard = "^0.13.5"
 
 [tool.poetry.dev-dependencies]

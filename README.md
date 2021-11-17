@@ -23,15 +23,15 @@ Running `main.py` will start the program. The software will begin detection auto
 
 | Name | Version | Purpose | License |
 |------|---------|---------|---------|
-| **[chess](https://pypi.org/project/chess/)** | ^1.6.1 | Communication with engine, game utilities | [GPLv3+](https://github.com/niklasf/python-chess/blob/master/LICENSE.txt) |
+| **[chess](https://pypi.org/project/chess/)** | ^1.7.0 | Communication with engine, game utilities | [GPLv3+](https://github.com/niklasf/python-chess/blob/master/LICENSE.txt) |
 | **[keyboard](https://pypi.org/project/keyboard/)** | ^0.13.5 | Hotkey for toggling activity | [MIT](https://github.com/boppreh/keyboard/blob/master/LICENSE.txt) |
 | **[mss](https://pypi.org/project/mss/)** | ^6.1.0 | Taking screenshots | [MIT](https://github.com/BoboTiG/python-mss/blob/master/LICENSE) |
 | **[numpy](https://pypi.org/project/numpy/)** | >=1.19.2, <1.20.0 | Efficient numeric operations | [BSD](https://github.com/numpy/numpy/blob/main/LICENSE.txt) |
 | **[Pillow](https://pypi.org/project/Pillow/)** | ^8.4.0 | Generating procedural training data | [HPND](https://github.com/python-pillow/Pillow/blob/main/LICENSE) |
-| **[PySide6](https://pypi.org/project/PySide6/)** | ^6.2.0 | GUI elements; overlay, tray icon, settings window | [LGPLv3](https://www.gnu.org/licenses/lgpl-3.0.en.html) |
-| **[pytomlpp](https://pypi.org/project/pytomlpp/)** | ^1.0.3 | I/O for settings and training files | [MIT](https://github.com/bobfang1992/pytomlpp/blob/master/LICENSE) |
+| **[PySide6](https://pypi.org/project/PySide6/)** | ^6.2.1 | GUI elements; overlay, tray icon, settings window | [LGPLv3](https://www.gnu.org/licenses/lgpl-3.0.en.html) |
+| **[pytomlpp](https://pypi.org/project/pytomlpp/)** | ^1.0.6 | I/O for settings and training files | [MIT](https://github.com/bobfang1992/pytomlpp/blob/master/LICENSE) |
 | **[scikit-image](https://pypi.org/project/scikit-image/)** | ^0.18.3 | Transforming images for vision | [Modified BSD](https://github.com/scikit-image/scikit-image/blob/main/LICENSE.txt) |
-| **[tensorflow](https://pypi.org/project/tensorflow/)** | ^2.6.0 | Neural network for tile classification | [Apache 2.0](https://github.com/tensorflow/tensorflow/blob/master/LICENSE) |
+| **[tensorflow](https://pypi.org/project/tensorflow/)** | ^2.7.0 | Neural network for tile classification | [Apache 2.0](https://github.com/tensorflow/tensorflow/blob/master/LICENSE) |
 
 ## Tile Classification
 
