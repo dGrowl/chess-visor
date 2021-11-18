@@ -258,6 +258,7 @@ class SettingsWindow(QWidget):
 
         left_spinbox_label = QLabel("Left:", board_group)
         self.left_spinbox = QSpinBox(board_group)
+        self.left_spinbox.setAccelerated(True)
         self.left_spinbox.setMinimum(0)
         self.left_spinbox.setMaximum(self.active_screen_width)
         self.left_spinbox.setValue(self.settings.board_rect_manual.left())
@@ -267,6 +268,7 @@ class SettingsWindow(QWidget):
 
         top_spinbox_label = QLabel("Top:", board_group)
         self.top_spinbox = QSpinBox(board_group)
+        self.top_spinbox.setAccelerated(True)
         self.top_spinbox.setMinimum(0)
         self.top_spinbox.setMaximum(self.active_screen_height)
         self.top_spinbox.setValue(self.settings.board_rect_manual.top())
@@ -282,6 +284,7 @@ class SettingsWindow(QWidget):
 
         width_spinbox_label = QLabel("Width:", board_group)
         self.width_spinbox = QSpinBox(board_group)
+        self.width_spinbox.setAccelerated(True)
         self.width_spinbox.setMinimum(8)
         self.width_spinbox.setMaximum(self.active_screen_width)
         self.width_spinbox.setValue(self.settings.board_rect_manual.width())
@@ -291,6 +294,7 @@ class SettingsWindow(QWidget):
 
         height_spinbox_label = QLabel("Height:", board_group)
         self.height_spinbox = QSpinBox(board_group)
+        self.height_spinbox.setAccelerated(True)
         self.height_spinbox.setMinimum(8)
         self.height_spinbox.setMaximum(self.active_screen_height)
         self.height_spinbox.setValue(self.settings.board_rect_manual.height())
