@@ -1,5 +1,6 @@
 from mss import mss
 from PySide6.QtGui import QGuiApplication, QImage, QPixmap
+from skimage.color import rgb2gray
 import keyboard
 import numpy as np
 
@@ -59,7 +60,7 @@ class Screenshotter:
             }
             self.screen_regions[screen.name()] = screen_geometry
 
-    def shot(self, screen_name):
+    def take(self, screen_name):
         screen_region = self.screen_regions[screen_name]
         screen_dimensions = (
             screen_region["height"],
@@ -70,3 +71,7 @@ class Screenshotter:
         screenshot = np.frombuffer(screenshot, dtype=np.uint8)
         screenshot = screenshot.reshape(screen_dimensions)
         return screenshot
+
+    def take_gray(self, screen_name):
+        screenshot = self.take(screen_name)
+        return rgb2gray(screenshot)

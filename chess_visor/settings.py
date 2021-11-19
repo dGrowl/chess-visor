@@ -205,7 +205,7 @@ class SettingsWindow(QWidget):
         screen_column.addWidget(self.screen_menu)
 
         for i, screen in enumerate(QGuiApplication.screens()):
-            shot = self.screenshotter.shot(screen.name())
+            shot = self.screenshotter.take(screen.name())
             shot = array_to_pixmap(shot)
             screen_icon = QIcon(shot)
             self.screen_menu.addItem(screen_icon, "")
@@ -598,7 +598,7 @@ class SettingsWindow(QWidget):
     def update_screenshots(self):
         screens = QGuiApplication.screens()
         for i, screen in enumerate(screens):
-            shot = self.screenshotter.shot(screen.name())
+            shot = self.screenshotter.take(screen.name())
             shot = array_to_pixmap(shot)
             self.screen_menu.setItemIcon(i, QIcon(shot))
             if screen.name() == self.settings.active_screen_name:

@@ -445,12 +445,13 @@ class TileClassifier:
             self.train_model()
             self.model.save(TileClassifier.ModelName)
 
-    def predict(self, X):
-        Y_probabilistic = self.model.predict(X)
-        highest_probabilities = Y_probabilistic.max(axis=1)
+    def predict(self, screenshot, board_rect):
+        tiles = extract_tiles_from_screenshot(screenshot, board_rect)
+        labels_probabilistic = self.model.predict(tiles)
+        highest_probabilities = labels_probabilistic.max(axis=1)
         least_high_probability = highest_probabilities.min()
         if least_high_probability < TileClassifier.ConfidenceThreshold:
             return None
-        Y = np.argmax(Y_probabilistic, axis=-1)
-        Y = TILE_LABELS[Y]
-        return Y.reshape(8, 8)
+        labels = np.argmax(labels_probabilistic, axis=1)
+        labels = TILE_LABELS[labels]
+        return labels.reshape(8, 8)

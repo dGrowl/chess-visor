@@ -6,14 +6,13 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QGuiApplication
 from skimage import img_as_float
-from skimage.color import rgb2gray
 from skimage.exposure import rescale_intensity
 from skimage.filters import sobel
 from skimage.transform import probabilistic_hough_line
 import numpy as np
 
 from .utility import Screenshotter, shift_to_front, shuffle_deterministic
-from .tile_classification import TileClassifier, extract_tiles_from_screenshot
+from .tile_classification import TileClassifier
 
 def squared_distance(point_a, point_b):
     return (point_b[0] - point_a[0])**2 + (point_b[1] - point_a[1])**2
@@ -222,17 +221,16 @@ class Observer(QThread):
     def __init__(self, settings, overlay):
         super().__init__()
 
-        self.access_lock = QReadWriteLock()
         self.active_screen_name = None
         self.auto_board_detect = settings.auto_board_detect
         self.board_detector = BoardDetector()
         self.board_rect_auto = QRect()
         self.board_rect_manual = settings.board_rect_manual
         self.board_rect_modified = True
-        self.found_chessboard = False
         self.is_active = True
         self.is_alive = True
         self.latest_tile_labels = None
+        self.lock = QReadWriteLock()
         self.overlay = overlay
         self.screenshotter = Screenshotter()
         self.start_time = 0
@@ -259,46 +257,46 @@ class Observer(QThread):
             raise RuntimeError(error_message)
 
     def get_alive(self):
-        with QReadLocker(self.access_lock):
+        with QReadLocker(self.lock):
             return self.is_alive
 
     def set_alive(self, should_be_alive):
-        with QWriteLocker(self.access_lock):
+        with QWriteLocker(self.lock):
             self.is_alive = should_be_alive
 
     def get_active(self):
-        with QReadLocker(self.access_lock):
+        with QReadLocker(self.lock):
             return self.is_active
 
     def set_active(self, should_be_active):
-        with QWriteLocker(self.access_lock):
+        with QWriteLocker(self.lock):
             self.is_active = should_be_active
 
     def get_auto_board_detect(self):
-        with QReadLocker(self.access_lock):
+        with QReadLocker(self.lock):
             return self.auto_board_detect
 
     def set_auto_board_detect(self, should_auto_detect):
-        with QWriteLocker(self.access_lock):
+        with QWriteLocker(self.lock):
             self.board_rect_modified = True
             self.auto_board_detect = should_auto_detect
 
     def get_board_rect_auto(self):
-        with QReadLocker(self.access_lock):
+        with QReadLocker(self.lock):
             return self.board_rect_auto
 
     def set_board_rect_auto(self, board_rect):
-        with QWriteLocker(self.access_lock):
+        with QWriteLocker(self.lock):
             if self.board_rect_auto != board_rect:
                 self.board_rect_modified = True
                 self.board_rect_auto = board_rect
 
     def get_board_rect_manual(self):
-        with QReadLocker(self.access_lock):
+        with QReadLocker(self.lock):
             return self.board_rect_manual
 
     def set_board_rect_manual(self, board_rect):
-        with QWriteLocker(self.access_lock):
+        with QWriteLocker(self.lock):
             if self.board_rect_manual != board_rect:
                 self.board_rect_modified = True
                 self.board_rect_manual = board_rect
@@ -306,8 +304,6 @@ class Observer(QThread):
     def detect_board(self, screenshot):
         if self.get_auto_board_detect():
             board_rect = self.board_detector.get_board(screenshot)
-            if board_rect is None:
-                self.found_chessboard = False
             return board_rect
         return self.board_rect_manual
 
@@ -323,34 +319,34 @@ class Observer(QThread):
             QThread.msleep(remaining_time)
         self.start_time = time()
 
+    def set_observation_success(self, was_successful):
+        self.overlay.set_hidden(not was_successful)
+        self.board_detector.set_confidence(was_successful)
+
+    def tile_labels_are_different(self, tile_labels):
+        return not np.array_equal(self.latest_tile_labels, tile_labels)
+
     def run(self):
         while self.get_alive():
             self.delay()
             if not self.get_active():
                 continue
-            screenshot = self.screenshotter.shot(self.active_screen_name)
-            screenshot = rgb2gray(screenshot)
+            screenshot = self.screenshotter.take_gray(self.active_screen_name)
             board_rect = self.detect_board(screenshot)
             if self.get_auto_board_detect():
                 self.set_board_rect_auto(board_rect)
             self.check_board_rect_modified()
             if board_rect is None:
-                self.overlay.set_hidden(True)
-                self.board_detector.set_confidence(False)
+                self.set_observation_success(False)
                 continue
-            tiles = extract_tiles_from_screenshot(screenshot, board_rect)
-            tile_labels = self.tile_classifier.predict(tiles)
-            self.found_chessboard = tile_labels is not None
-            if not self.found_chessboard:
-                self.overlay.set_hidden(True)
-                self.board_detector.set_confidence(False)
+            tile_labels = self.tile_classifier.predict(screenshot, board_rect)
+            if tile_labels is None:
+                self.set_observation_success(False)
                 continue
-            self.overlay.set_hidden(False)
-            self.board_detector.set_confidence(True)
-            if np.array_equal(self.latest_tile_labels, tile_labels):
-                continue
-            self.updated_tile_labels.emit(tile_labels)
-            self.latest_tile_labels = tile_labels
+            self.set_observation_success(True)
+            if self.tile_labels_are_different(tile_labels):
+                self.updated_tile_labels.emit(tile_labels)
+                self.latest_tile_labels = tile_labels
 
     def stop(self):
         self.set_active(False)
