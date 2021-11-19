@@ -22,6 +22,9 @@ def moves_have_same_coords(move_a, move_b):
         move_a.to_square   == move_b.to_square
     )
 
+def game_is_rotated(fen_on_screen, game_board_fen):
+    return fen_on_screen != game_board_fen
+
 class AnalysisJob:
     def __init__(self, batch_id, fen_on_screen, game):
         self.batch_id = batch_id
@@ -62,7 +65,7 @@ class EngineThread(QThread):
                 from_square = move.from_square
                 to_square = move.to_square
                 dest_tile = move.uci()[2:]
-                if job.fen_on_screen != game.board_fen():
+                if game_is_rotated(job.fen_on_screen, game.board_fen()):
                     from_square = 63 - from_square
                     to_square = 63 - to_square
                 job.move = BasicMove(from_square, to_square, dest_tile)
