@@ -6,13 +6,12 @@ from chess import FILE_NAMES, RANK_NAMES
 from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
 from skimage.transform import resize
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import (
-    Convolution2D, Dense, Dropout, Flatten, MaxPooling2D
-)
+from tensorflow.keras.layers import Conv2D, Dense, Dropout, Flatten, MaxPool2D
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
 from tensorflow.keras.models import load_model
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.optimizers import Adam
 import numpy as np
 import pytomlpp as toml
 import tensorflow as tf
@@ -374,36 +373,37 @@ class TileClassifier:
         self.load_model()
 
     def create_model(self):
-        self.model = Sequential()
         convolution_l2 = l2(1e-2)
+        optimizer = Adam(amsgrad=True)
+        self.normalization_layer = Normalization()
 
-        self.normalization_layer = Normalization(axis=1)
+        self.model = Sequential()
 
         self.model.add(self.normalization_layer)
-        self.model.add(Convolution2D(
-            24, (3, 3),
+        self.model.add(Conv2D(
+            12, (3, 3),
             activation="relu",
             padding="same",
             kernel_regularizer=convolution_l2,
             bias_regularizer=convolution_l2,
             input_shape=(40, 40, 1)
         ))
-        self.model.add(Convolution2D(
-            48, (3, 3),
+        self.model.add(Conv2D(
+            24, (3, 3),
             activation="relu",
             padding="same",
             kernel_regularizer=convolution_l2,
             bias_regularizer=convolution_l2
         ))
-        self.model.add(MaxPooling2D(pool_size=(2, 2)))
-        self.model.add(Convolution2D(
-            32, (3, 3),
+        self.model.add(MaxPool2D(pool_size=(2, 2)))
+        self.model.add(Conv2D(
+            16, (3, 3),
             activation="relu",
             padding="same",
             kernel_regularizer=convolution_l2,
             bias_regularizer=convolution_l2
         ))
-        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+        self.model.add(MaxPool2D(pool_size=(2, 2)))
         self.model.add(Flatten())
         self.model.add(Dropout(0.2))
         self.model.add(Dense(256, activation="relu"))
@@ -412,7 +412,7 @@ class TileClassifier:
 
         self.model.compile(
             loss="categorical_crossentropy",
-            optimizer="adam",
+            optimizer=optimizer,
             metrics=["accuracy"]
         )
 
