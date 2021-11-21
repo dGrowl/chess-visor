@@ -9,6 +9,7 @@ from tensorflow.keras import Sequential
 from tensorflow.keras.layers import (
     Convolution2D, Dense, Dropout, Flatten, MaxPooling2D
 )
+from tensorflow.keras.layers.experimental.preprocessing import Normalization
 from tensorflow.keras.models import load_model
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.utils import to_categorical
@@ -376,6 +377,9 @@ class TileClassifier:
         self.model = Sequential()
         convolution_l2 = l2(1e-2)
 
+        self.normalization_layer = Normalization(axis=1)
+
+        self.model.add(self.normalization_layer)
         self.model.add(Convolution2D(
             24, (3, 3),
             activation="relu",
@@ -413,6 +417,7 @@ class TileClassifier:
         )
 
     def fit(self, X_tr, Y_tr, X_va, Y_va):
+        self.normalization_layer.adapt(X_tr)
         self.model.fit(
             X_tr, Y_tr,
             validation_data=(X_va, Y_va),
