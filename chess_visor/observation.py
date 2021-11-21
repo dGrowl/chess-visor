@@ -129,7 +129,7 @@ class BoardDetector:
             )
             for lower_bound in lower_bounds:
                 self.possible_ranges.append((lower_bound, upper_bound))
-        shuffle_deterministic(self.possible_ranges, 7)
+        shuffle_deterministic(self.possible_ranges)
 
     def set_default_bounds(self):
         self.range_index = 0

@@ -16,7 +16,7 @@ def array_to_pixmap(array):
     pixmap = QPixmap(image)
     return pixmap
 
-def shuffle_deterministic(array_like, seed):
+def shuffle_deterministic(array_like, seed=7):
     rng = np.random.default_rng(seed=seed)
     rng.shuffle(array_like)
 
