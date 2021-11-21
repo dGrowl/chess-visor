@@ -4,7 +4,6 @@ environ["TF_CPP_MIN_LOG_LEVEL"] = '3'
 
 from chess import FILE_NAMES, RANK_NAMES
 from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
-from skimage.color import rgb2gray, rgba2rgb
 from skimage.transform import resize
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import (
@@ -413,13 +412,21 @@ class TileClassifier:
             metrics=["accuracy"]
         )
 
+    def fit(self, X_tr, Y_tr, X_va, Y_va):
+        self.model.fit(
+            X_tr, Y_tr,
+            validation_data=(X_va, Y_va),
+            epochs=self.n_epochs,
+            shuffle=True,
+            batch_size=64,
+            verbose=1
+        )
+
     def train_model(self):
         all_piece_versions = np.arange(self.n_piece_versions)
-        X_va, Y_va = generate_synthetic_batches(32, all_piece_versions)
         X_tr, Y_tr = generate_synthetic_batches(512, all_piece_versions)
-        for _ in range(self.n_epochs):
-            self.model.fit(X_tr, Y_tr, batch_size=64, verbose=1)
-            self.model.evaluate(X_va, Y_va, verbose=1)
+        X_va, Y_va = generate_synthetic_batches(32, all_piece_versions)
+        self.fit(X_tr, Y_tr, X_va, Y_va)
 
     def cross_validate(self, k):
         versions_tr, versions_va = generate_folds(k, self.n_piece_versions)
@@ -431,11 +438,9 @@ class TileClassifier:
             print(f"Fold {i + 1}/{k}:")
             print(f"  Training Versions:   {versions_tr[i]}")
             print(f"  Validation Versions: {versions_va[i]}")
-            X_va, Y_va = generate_synthetic_batches(32, versions_va[i])
             X_tr, Y_tr = generate_synthetic_batches(256, versions_tr[i])
-            for _ in range(self.n_epochs):
-                self.model.fit(X_tr, Y_tr, batch_size=64, verbose=1)
-                self.model.evaluate(X_va, Y_va, verbose=1)
+            X_va, Y_va = generate_synthetic_batches(32, versions_va[i])
+            self.fit(X_tr, Y_tr, X_va, Y_va)
 
     def load_model(self):
         try:
