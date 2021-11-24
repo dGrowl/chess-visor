@@ -35,6 +35,8 @@ class AnalysisJob:
 class EngineThread(QThread):
     new_move = Signal(AnalysisJob)
 
+    AnalysisTimeLimit = chess.engine.Limit(time=0.5)
+
     def __init__(self, analysis_queue, engine_path):
         super().__init__()
         self.analysis_queue = analysis_queue
@@ -58,7 +60,7 @@ class EngineThread(QThread):
             except Empty:
                 continue
             game = job.game
-            analysis = self.engine.analysis(game, chess.engine.Limit(time=0.5))
+            analysis = self.engine.analysis(game, EngineThread.AnalysisTimeLimit)
             analysis_result = analysis.wait()
             move = analysis_result.move
             if move is not None:
