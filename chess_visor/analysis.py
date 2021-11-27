@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from itertools import combinations
 from os.path import isfile
 from queue import SimpleQueue, Empty
 
@@ -10,27 +9,32 @@ from PySide6.QtCore import (
 import chess
 import chess.engine
 
-@dataclass(eq=True, frozen=True)
-class BasicMove:
-    from_square: int
-    to_square: int
-    to_label: str
-
-def moves_have_same_coords(move_a, move_b):
-    return (
-        move_a.from_square == move_b.from_square and
-        move_a.to_square   == move_b.to_square
-    )
-
 def game_is_rotated(fen_on_screen, game_board_fen):
     return fen_on_screen != game_board_fen
 
+def convert_square_to_coords(square):
+    file_from = chess.square_file(square)
+    rank_from = 7 - chess.square_rank(square)
+    return file_from, rank_from
+
+def combine_labels(labels):
+	return '/'.join(labels)
+
+def transform_move(move, is_game_rotated):
+    square_from = move.from_square
+    square_to = move.to_square
+    label = move.uci()[2:]
+    if is_game_rotated:
+        square_from = 63 - square_from
+        square_to = 63 - square_to
+    return ((square_from, square_to), label)
+
+@dataclass
 class AnalysisJob:
-    def __init__(self, batch_id, fen_on_screen, game):
-        self.batch_id = batch_id
-        self.fen_on_screen = fen_on_screen
-        self.game = game
-        self.move = None
+    batch_id: int
+    game: chess.Board
+    is_game_rotated: bool
+    move: tuple[tuple, str] = None
 
 class EngineThread(QThread):
     new_move = Signal(AnalysisJob)
@@ -64,18 +68,12 @@ class EngineThread(QThread):
             analysis_result = analysis.wait()
             move = analysis_result.move
             if move is not None:
-                from_square = move.from_square
-                to_square = move.to_square
-                dest_tile = move.uci()[2:]
-                if game_is_rotated(job.fen_on_screen, game.board_fen()):
-                    from_square = 63 - from_square
-                    to_square = 63 - to_square
-                job.move = BasicMove(from_square, to_square, dest_tile)
+                job.move = transform_move(move, job.is_game_rotated)
                 self.new_move.emit(job)
         self.engine.quit()
 
 class Analyzer(QObject):
-    updated_moveset = Signal(set)
+    updated_moveset = Signal(list)
 
     def __init__(self, settings):
         super().__init__()
@@ -129,25 +127,29 @@ class Analyzer(QObject):
             self.move_batch_id = 0
         return self.move_batch_id
 
-    @Slot(BasicMove)
+    @Slot(AnalysisJob)
     def job_completed(self, job):
         if job.batch_id != self.move_batch_id:
             return
-        self.best_moves.append(job.move)
-        if len(self.best_moves) == self.n_jobs:
-            unique_moves = set(self.best_moves)
-            moves_same_coords = set()
-            for move_a, move_b in combinations(unique_moves, 2):
-                if moves_have_same_coords(move_a, move_b):
-                    merged_move = BasicMove(
-                        move_a.from_square,
-                        move_b.to_square,
-                        f"{move_a.to_label}/{move_b.to_label}"
-                    )
-                    unique_moves.add(merged_move)
-                    moves_same_coords.add(move_a)
-                    moves_same_coords.add(move_b)
-            self.updated_moveset.emit(unique_moves - moves_same_coords)
+        self.n_completed_jobs += 1
+        squares, label = job.move
+        if seen_move_labels := self.best_moves.get(squares):
+            if label not in seen_move_labels:
+                seen_move_labels.append(label)
+        else:
+            self.best_moves[squares] = [label]
+        if self.n_completed_jobs == self.n_jobs:
+            moves = []
+            for squares, labels in self.best_moves.items():
+                square_from, square_to = squares
+                file_from, rank_from = convert_square_to_coords(square_from)
+                file_to, rank_to = convert_square_to_coords(square_to)
+                moves.append((
+                    file_from, rank_from,
+                    file_to, rank_to,
+                    combine_labels(labels)
+                ))
+            self.updated_moveset.emit(moves)
 
     @Slot(list, str)
     def get_best_moves(self, possible_games, fen_on_screen):
@@ -155,7 +157,12 @@ class Analyzer(QObject):
         if self.n_jobs == 0:
             return
         batch_id = self.get_batch_id()
-        self.best_moves = []
+        self.n_completed_jobs = 0
+        self.best_moves = dict()
         for game in possible_games:
-            job = AnalysisJob(batch_id, fen_on_screen, game)
+            job = AnalysisJob(
+                batch_id,
+                game,
+                game_is_rotated(fen_on_screen, game.board_fen())
+            )
             self.analysis_queue.put(job)

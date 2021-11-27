@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 from PySide6.QtCore import QLineF, QRect, QRectF, Qt, Slot
 from PySide6.QtGui import (
     QBrush, QColor, QFont, QFontDatabase,
@@ -13,15 +11,6 @@ import numpy as np
 
 from .utility import increment_key
 from .game_state import is_white_piece
-
-@dataclass
-class OverlayMove:
-    x_from: int
-    y_from: int
-    x_to: int
-    y_to: int
-    color: bool
-    to_label: str
 
 class Overlay(QMainWindow):
     Black = QColor(48, 48, 48)
@@ -128,9 +117,9 @@ class Overlay(QMainWindow):
             self.latest_moves = None
             self.clear()
 
-    def add_move(self, move):
-        self.add_line(move)
-        self.add_label(move)
+    def add_move(self, x_from, y_from, x_to, y_to, label, color):
+        self.add_line(x_from, y_from, x_to, y_to, color)
+        self.add_label(x_to, y_to, label, color)
 
     def add_source_circle(self, coords, color):
         circle = self.scene.addEllipse(
@@ -145,48 +134,48 @@ class Overlay(QMainWindow):
         else:
             circle.setBrush(Overlay.BlackBrush)
 
-    def add_line(self, move):
+    def add_line(self, x_from, y_from, x_to, y_to, color):
         line = QLineF(
-            move.x_from + self.screen_rect.x(),
-            move.y_from + self.screen_rect.y(),
-            move.x_to + self.screen_rect.x(),
-            move.y_to + self.screen_rect.y()
+            x_from + self.screen_rect.x(),
+            y_from + self.screen_rect.y(),
+            x_to + self.screen_rect.x(),
+            y_to + self.screen_rect.y()
         )
         line_bg_graphic = self.scene.addLine(line, pen=Overlay.GrayPenThick)
         line_bg_graphic.setZValue(-2)
         line_fg_graphic = self.scene.addLine(line)
         line_fg_graphic.setZValue(-1)
-        if move.color == chess.WHITE:
+        if color == chess.WHITE:
             line_fg_graphic.setPen(Overlay.WhitePen)
         else:
             line_fg_graphic.setPen(Overlay.BlackPen)
 
-    def add_label(self, move):
-        label = self.scene.addSimpleText(move.to_label, font=self.label_font)
-        label_rect = label.boundingRect()
+    def add_label(self, x_to, y_to, label, color):
+        label_graphic = self.scene.addSimpleText(label, font=self.label_font)
+        label_rect = label_graphic.boundingRect()
         label_offset_x = label_rect.width() / 2
         label_offset_y = label_rect.height() / 2
-        label_x = move.x_to - label_offset_x + self.screen_rect.x()
-        label_y = move.y_to - label_offset_y + self.screen_rect.y()
+        label_x = x_to - label_offset_x + self.screen_rect.x()
+        label_y = y_to - label_offset_y + self.screen_rect.y()
         label_w = label_rect.width() + 6
         label_h = label_rect.height() + 2
-        label.setZValue(2)
-        label.setPos(label_x, label_y)
+        label_graphic.setZValue(2)
+        label_graphic.setPos(label_x, label_y)
 
         rect = QRectF(
-            move.x_to - label_w / 2 + self.screen_rect.x(),
-            move.y_to - label_h / 2 + self.screen_rect.y(),
+            x_to - label_w / 2 + self.screen_rect.x(),
+            y_to - label_h / 2 + self.screen_rect.y(),
             label_w, label_h
         )
         rect_graphic = self.scene.addRect(rect)
         rect_graphic.setPen(Overlay.GrayPenThin)
         rect_graphic.setZValue(1)
 
-        if move.color == chess.WHITE:
-            label.setBrush(Overlay.BlackBrush)
+        if color == chess.WHITE:
+            label_graphic.setBrush(Overlay.BlackBrush)
             rect_graphic.setBrush(Overlay.WhiteBrush)
         else:
-            label.setBrush(Overlay.WhiteBrush)
+            label_graphic.setBrush(Overlay.WhiteBrush)
             rect_graphic.setBrush(Overlay.BlackBrush)
 
     @Slot(set)
@@ -205,10 +194,9 @@ class Overlay(QMainWindow):
         half_tile_w = tile_w / 2
         half_tile_h = tile_h / 2
         for move in self.latest_moves:
-            file_from = chess.square_file(move.from_square)
-            rank_from = 7 - chess.square_rank(move.from_square)
-            file_to = chess.square_file(move.to_square)
-            rank_to = 7 - chess.square_rank(move.to_square)
+            file_from, rank_from, file_to, rank_to, label = move
+            piece = self.tile_labels[rank_from, file_from]
+            color = chess.WHITE if is_white_piece(piece) else chess.BLACK
             x_from = x_board + file_from * tile_w + half_tile_w
             y_from = y_board + rank_from * tile_h + half_tile_h
             x_to = x_board + file_to * tile_w + half_tile_w
@@ -218,9 +206,14 @@ class Overlay(QMainWindow):
                 y_from *= self.coordinate_modifier
                 x_to *= self.coordinate_modifier
                 y_to *= self.coordinate_modifier
-            piece = self.tile_labels[rank_from, file_from]
-            color = chess.WHITE if is_white_piece(piece) else chess.BLACK
-            mapped_moves.append(OverlayMove(x_from, y_from, x_to, y_to, color, move.to_label))
+            mapped_moves.append((
+                x_from,
+                y_from,
+                x_to,
+                y_to,
+                label,
+                color
+            ))
         self.add_moves(mapped_moves)
 
     def add_moves(self, moves):
@@ -229,15 +222,17 @@ class Overlay(QMainWindow):
         source_squares = set()
         angle_indices = dict()
         for move in moves:
-            from_coords = (move.x_from, move.y_from)
-            to_coords = (move.x_to, move.y_to)
+            x_from, y_from, x_to, y_to, _, color = move
+            from_coords = (x_from, y_from)
+            to_coords = (x_to, y_to)
 
             increment_key(overlaps, to_coords)
             source_squares.add(from_coords)
-            self.add_source_circle(from_coords, move.color)
+            self.add_source_circle(from_coords, color)
 
         for move in moves:
-            to_coords = (move.x_to, move.y_to)
+            x_from, y_from, x_to, y_to, label, color = move
+            to_coords = (x_to, y_to)
 
             n_to_overlaps = overlaps.get(to_coords, 0)
             if to_coords in source_squares:
@@ -254,16 +249,6 @@ class Overlay(QMainWindow):
                     angle_indices[to_coords] = 0
                 i = angle_indices[to_coords]
                 angle_indices[to_coords] += 1
-                to_coords = (
-                    to_coords[0] + 20 * np.cos(angles[i]),
-                    to_coords[1] + 20 * np.sin(angles[i])
-                )
-            shifted_move = OverlayMove(
-                move.x_from,
-                move.y_from,
-                to_coords[0],
-                to_coords[1],
-                move.color,
-                move.to_label
-            )
-            self.add_move(shifted_move)
+                x_to = to_coords[0] + 20 * np.cos(angles[i])
+                y_to = to_coords[1] + 20 * np.sin(angles[i])
+            self.add_move(x_from, y_from, x_to, y_to, label, color)
