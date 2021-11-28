@@ -235,9 +235,7 @@ class Overlay(QMainWindow):
                     num=n_to_overlaps,
                     endpoint=False
                 )
-                if xy_to not in angle_indices:
-                    angle_indices[xy_to] = 0
-                i = angle_indices[xy_to]
+                i = angle_indices.setdefault(xy_to, 0)
                 angle_indices[xy_to] += 1
                 x_to += 20 * np.cos(angles[i])
                 y_to += 20 * np.sin(angles[i])
