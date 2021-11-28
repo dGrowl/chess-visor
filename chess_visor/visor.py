@@ -115,7 +115,7 @@ class Visor(QObject):
 
     def init_analyzer(self, settings):
         self.analyzer = Analyzer(settings)
-        self.analyzer.updated_moveset.connect(self.overlay.set_moves)
+        self.analyzer.updated_moves.connect(self.overlay.set_moves)
 
     def init_game_state(self):
         self.game_state = GameState()
@@ -125,7 +125,7 @@ class Visor(QObject):
         self.set_active_hotkey(settings.active_hotkey)
         self.observer = Observer(settings, self.overlay)
         self.observer.updated_tile_labels.connect(self.game_state.set_position)
-        self.observer.updated_tile_labels.connect(self.overlay.set_tile_labels)
+        self.observer.updated_tile_labels.connect(self.overlay.clear)
         self.observer.updated_board_rect.connect(self.overlay.set_board_rect)
 
     def init_settings_window(self, settings):

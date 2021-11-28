@@ -12,10 +12,10 @@ import chess.engine
 def game_is_rotated(fen_on_screen, game_board_fen):
     return fen_on_screen != game_board_fen
 
-def convert_square_to_coords(square):
-    file_from = chess.square_file(square)
-    rank_from = 7 - chess.square_rank(square)
-    return file_from, rank_from
+def convert_square_to_indices(square):
+    i = 7 - chess.square_rank(square)
+    j = chess.square_file(square)
+    return i, j
 
 def combine_labels(labels):
 	return '/'.join(labels)
@@ -30,16 +30,25 @@ def transform_move(move, is_game_rotated):
     return ((square_from, square_to), label)
 
 @dataclass
+class Move:
+    i_from: int
+    j_from: int
+    i_to: int
+    j_to: int
+    label: str
+    color: bool
+
+@dataclass
 class AnalysisJob:
     batch_id: int
     game: chess.Board
     is_game_rotated: bool
     move: tuple[tuple, str] = None
 
-class EngineThread(QThread):
+class AnalysisThread(QThread):
     new_move = Signal(AnalysisJob)
 
-    AnalysisTimeLimit = chess.engine.Limit(time=0.5)
+    TimeLimit = chess.engine.Limit(time=0.5)
 
     def __init__(self, analysis_queue, engine_path):
         super().__init__()
@@ -57,14 +66,14 @@ class EngineThread(QThread):
             self.is_alive = should_be_alive
 
     def run(self):
+        job = None
         while self.get_alive():
-            job = None
             try:
                 job = self.analysis_queue.get(timeout=2)
             except Empty:
                 continue
             game = job.game
-            analysis = self.engine.analysis(game, EngineThread.AnalysisTimeLimit)
+            analysis = self.engine.analysis(game, AnalysisThread.TimeLimit)
             analysis_result = analysis.wait()
             move = analysis_result.move
             if move is not None:
@@ -73,16 +82,18 @@ class EngineThread(QThread):
         self.engine.quit()
 
 class Analyzer(QObject):
-    updated_moveset = Signal(list)
+    updated_moves = Signal(list)
 
     def __init__(self, settings):
         super().__init__()
         self.analysis_queue = SimpleQueue()
-        self.best_moves = None
+        self.moves = dict()
+        self.move_colors = dict()
         self.engine_path = settings.engine_path
         self.engine_process_count = settings.engine_process_count
         self.is_alive = False
         self.move_batch_id = 0
+        self.n_completed_jobs = 0
         self.n_jobs = 0
         self.workers = []
 
@@ -93,8 +104,8 @@ class Analyzer(QObject):
             self.stop()
             self.wait()
         for _ in range(self.engine_process_count):
-            worker = EngineThread(self.analysis_queue, self.engine_path)
-            worker.new_move.connect(self.job_completed)
+            worker = AnalysisThread(self.analysis_queue, self.engine_path)
+            worker.new_move.connect(self.finish_job)
             worker.start()
             self.workers.append(worker)
 
@@ -121,44 +132,54 @@ class Analyzer(QObject):
             self.wait()
             self.start()
 
-    def get_batch_id(self):
+    def get_next_batch_id(self):
         self.move_batch_id += 1
         if self.move_batch_id >= 65536:
             self.move_batch_id = 0
         return self.move_batch_id
 
+    def add_move(self, move, color):
+        squares, label = move
+        if move_labels := self.moves.get(squares):
+            if label not in move_labels:
+                move_labels.append(label)
+        else:
+            self.moves[squares] = [label]
+            self.move_colors[squares] = color
+
+    def emit_moves(self):
+        moves = []
+        for squares, labels in self.moves.items():
+            square_from, square_to = squares
+            i_from, j_from = convert_square_to_indices(square_from)
+            i_to, j_to = convert_square_to_indices(square_to)
+            move = Move(
+                i_from, j_from,
+                i_to, j_to,
+                combine_labels(labels),
+                self.move_colors[squares]
+            )
+            moves.append(move)
+        self.updated_moves.emit(moves)
+
     @Slot(AnalysisJob)
-    def job_completed(self, job):
+    def finish_job(self, job):
         if job.batch_id != self.move_batch_id:
             return
         self.n_completed_jobs += 1
-        squares, label = job.move
-        if seen_move_labels := self.best_moves.get(squares):
-            if label not in seen_move_labels:
-                seen_move_labels.append(label)
-        else:
-            self.best_moves[squares] = [label]
+        self.add_move(job.move, job.game.turn)
         if self.n_completed_jobs == self.n_jobs:
-            moves = []
-            for squares, labels in self.best_moves.items():
-                square_from, square_to = squares
-                file_from, rank_from = convert_square_to_coords(square_from)
-                file_to, rank_to = convert_square_to_coords(square_to)
-                moves.append((
-                    file_from, rank_from,
-                    file_to, rank_to,
-                    combine_labels(labels)
-                ))
-            self.updated_moveset.emit(moves)
+            self.emit_moves()
 
     @Slot(list, str)
     def get_best_moves(self, possible_games, fen_on_screen):
         self.n_jobs = len(possible_games)
         if self.n_jobs == 0:
             return
-        batch_id = self.get_batch_id()
+        batch_id = self.get_next_batch_id()
         self.n_completed_jobs = 0
-        self.best_moves = dict()
+        self.moves.clear()
+        self.move_colors.clear()
         for game in possible_games:
             job = AnalysisJob(
                 batch_id,

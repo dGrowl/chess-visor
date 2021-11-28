@@ -77,8 +77,8 @@ class GameState(QObject):
         self.black_queen_castle = ['', 'q']
         self.could_be_flipped = True
         self.could_be_unflipped = True
-        self.last_move = None
-        self.vacated_coords = None
+        self.ij_last_to = None
+        self.ij_vacated = None
 
     def make_starting_assumptions(self, is_flipped=False):
         self.active_color = ['w']
@@ -91,8 +91,8 @@ class GameState(QObject):
         self.black_queen_castle = ['q']
         self.could_be_flipped = is_flipped
         self.could_be_unflipped = not is_flipped
-        self.last_move = None
-        self.vacated_coords = None
+        self.ij_last_to = None
+        self.ij_vacated = None
 
     def assume_flipped(self, believe_flipped):
         if believe_flipped:
@@ -196,9 +196,9 @@ class GameState(QObject):
 
     def check_en_passant(self):
         possible_ep_captures = ['-']
-        if self.last_move is not None:
-            moved_piece = self.position[self.last_move]
-            i, j = self.last_move
+        if self.ij_last_to is not None:
+            moved_piece = self.position[self.ij_last_to]
+            i, j = self.ij_last_to
             if moved_piece == 'p':
                 if self.could_be_unflipped and i == 3:
                     file = chess.FILE_NAMES[j]
@@ -234,67 +234,67 @@ class GameState(QObject):
     def check_continuation(self, position):
         if self.position is None:
             return False
-        change_mask = (position != self.position)
-        change_indices = np.argwhere(change_mask)
-        n_changes = change_indices.shape[0]
-        if n_changes > 2:
-            self.vacated_coords = None
+        update_mask = (position != self.position)
+        update_indices = np.argwhere(update_mask)
+        n_updates = update_indices.shape[0]
+        if n_updates > 2:
+            self.ij_vacated = None
             return False
-        if n_changes == 1:
-            updated_coords = tuple(change_indices[0])
-            updated_piece = position[updated_coords]
-            self.last_move = updated_coords
+        if n_updates == 1:
+            ij_updated = tuple(update_indices[0])
+            updated_piece = position[ij_updated]
+            self.ij_last_to = ij_updated
             if is_empty_tile(updated_piece):
-                self.vacated_coords = updated_coords
-                old_piece = self.position[updated_coords]
+                self.ij_vacated = ij_updated
+                old_piece = self.position[ij_updated]
                 self.active_color = ['b'] if is_white_piece(old_piece) else ['w']
             else:
                 self.active_color = ['b'] if is_white_piece(updated_piece) else ['w']
-                if self.vacated_coords is not None:
+                if self.ij_vacated is not None:
                     if updated_piece == 'p':
-                        if updated_coords[0] > self.vacated_coords[0]:
+                        if ij_updated[0] > self.ij_vacated[0]:
                             self.assume_flipped(False)
                         else:
                             self.assume_flipped(True)
                     elif updated_piece == 'P':
-                        if updated_coords[0] > self.vacated_coords[0]:
+                        if ij_updated[0] > self.ij_vacated[0]:
                             self.assume_flipped(True)
                         else:
                             self.assume_flipped(False)
-                    self.vacated_coords = None
+                    self.ij_vacated = None
             return True
-        self.vacated_coords = None
-        new_tiles = position[change_mask]
-        if new_tiles[0] == ' ':
-            moved_from_coords = tuple(change_indices[0])
-            moved_piece = self.position[moved_from_coords]
-            if new_tiles[1] == moved_piece:
-                self.last_move = tuple(change_indices[1])
+        self.ij_vacated = None
+        updated_labels = position[update_mask]
+        if updated_labels[0] == ' ':
+            ij_from = tuple(update_indices[0])
+            moved_piece = self.position[ij_from]
+            if updated_labels[1] == moved_piece:
+                self.ij_last_to = tuple(update_indices[1])
                 self.active_color = ['b'] if is_white_piece(moved_piece) else ['w']
                 if moved_piece == 'p':
-                    if self.last_move[0] > moved_from_coords[0]:
+                    if self.ij_last_to[0] > ij_from[0]:
                         self.assume_flipped(False)
                     else:
                         self.assume_flipped(True)
                 elif moved_piece == 'P':
-                    if self.last_move[0] > moved_from_coords[0]:
+                    if self.ij_last_to[0] > ij_from[0]:
                         self.assume_flipped(True)
                     else:
                         self.assume_flipped(False)
                 return True
-        elif new_tiles[1] == ' ':
-            moved_from_coords = tuple(change_indices[1])
-            moved_piece = self.position[moved_from_coords]
-            if new_tiles[0] == moved_piece:
-                self.last_move = tuple(change_indices[0])
+        elif updated_labels[1] == ' ':
+            ij_from = tuple(update_indices[1])
+            moved_piece = self.position[ij_from]
+            if updated_labels[0] == moved_piece:
+                self.ij_last_to = tuple(update_indices[0])
                 self.active_color = ['b'] if is_white_piece(moved_piece) else ['w']
                 if moved_piece == 'p':
-                    if self.last_move[0] > moved_from_coords[0]:
+                    if self.ij_last_to[0] > ij_from[0]:
                         self.assume_flipped(False)
                     else:
                         self.assume_flipped(True)
                 elif moved_piece == 'P':
-                    if self.last_move[0] > moved_from_coords[0]:
+                    if self.ij_last_to[0] > ij_from[0]:
                         self.assume_flipped(True)
                     else:
                         self.assume_flipped(False)

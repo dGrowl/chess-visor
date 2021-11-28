@@ -10,7 +10,6 @@ import chess
 import numpy as np
 
 from .utility import increment_key
-from .game_state import is_white_piece
 
 class Overlay(QMainWindow):
     Black = QColor(48, 48, 48)
@@ -30,7 +29,6 @@ class Overlay(QMainWindow):
         self.is_active = True
         self.latest_moves = None
         self.scene = None
-        self.tile_labels = None
         self.set_active_screen(settings.active_screen_name)
 
         self.init_window()
@@ -111,20 +109,17 @@ class Overlay(QMainWindow):
         self.map_moves_to_board()
 
     @Slot(np.ndarray)
-    def set_tile_labels(self, tile_labels):
-        if not np.array_equal(tile_labels, self.tile_labels):
-            self.tile_labels = tile_labels
-            self.latest_moves = None
-            self.clear()
+    def clear(self, _):
+        self.scene.clear()
 
     def add_move(self, x_from, y_from, x_to, y_to, label, color):
         self.add_line(x_from, y_from, x_to, y_to, color)
         self.add_label(x_to, y_to, label, color)
 
-    def add_source_circle(self, coords, color):
+    def add_source_circle(self, x, y, color):
         circle = self.scene.addEllipse(
-            coords[0] - 5 + self.screen_rect.x(),
-            coords[1] - 5 + self.screen_rect.y(),
+            x - 5 + self.screen_rect.x(),
+            y - 5 + self.screen_rect.y(),
             10, 10,
             Overlay.GrayPenThin
         )
@@ -178,7 +173,7 @@ class Overlay(QMainWindow):
             label_graphic.setBrush(Overlay.WhiteBrush)
             rect_graphic.setBrush(Overlay.BlackBrush)
 
-    @Slot(set)
+    @Slot(list)
     def set_moves(self, moves):
         self.latest_moves = moves
         self.map_moves_to_board()
@@ -194,13 +189,10 @@ class Overlay(QMainWindow):
         half_tile_w = tile_w / 2
         half_tile_h = tile_h / 2
         for move in self.latest_moves:
-            file_from, rank_from, file_to, rank_to, label = move
-            piece = self.tile_labels[rank_from, file_from]
-            color = chess.WHITE if is_white_piece(piece) else chess.BLACK
-            x_from = x_board + file_from * tile_w + half_tile_w
-            y_from = y_board + rank_from * tile_h + half_tile_h
-            x_to = x_board + file_to * tile_w + half_tile_w
-            y_to = y_board + rank_to * tile_h + half_tile_h
+            x_from = x_board + move.j_from * tile_w + half_tile_w
+            y_from = y_board + move.i_from * tile_h + half_tile_h
+            x_to = x_board + move.j_to * tile_w + half_tile_w
+            y_to = y_board + move.i_to * tile_h + half_tile_h
             if self.coordinate_modifier != 1:
                 x_from *= self.coordinate_modifier
                 y_from *= self.coordinate_modifier
@@ -211,44 +203,42 @@ class Overlay(QMainWindow):
                 y_from,
                 x_to,
                 y_to,
-                label,
-                color
+                move.label,
+                move.color
             ))
         self.add_moves(mapped_moves)
 
     def add_moves(self, moves):
-        self.clear()
+        self.scene.clear()
         overlaps = dict()
-        source_squares = set()
+        from_squares = set()
         angle_indices = dict()
-        for move in moves:
-            x_from, y_from, x_to, y_to, _, color = move
-            from_coords = (x_from, y_from)
-            to_coords = (x_to, y_to)
+        for x_from, y_from, x_to, y_to, _, color in moves:
+            xy_from = (x_from, y_from)
+            xy_to = (x_to, y_to)
 
-            increment_key(overlaps, to_coords)
-            source_squares.add(from_coords)
-            self.add_source_circle(from_coords, color)
+            increment_key(overlaps, xy_to)
+            if xy_from not in from_squares:
+                from_squares.add(xy_from)
+                self.add_source_circle(x_from, y_from, color)
 
-        for move in moves:
-            x_from, y_from, x_to, y_to, label, color = move
-            to_coords = (x_to, y_to)
+        for x_from, y_from, x_to, y_to, label, color in moves:
+            xy_to = (x_to, y_to)
 
-            n_to_overlaps = overlaps.get(to_coords, 0)
-            if to_coords in source_squares:
+            n_to_overlaps = overlaps.get(xy_to, 0)
+            if xy_to in from_squares:
                 n_to_overlaps += 1
 
             if n_to_overlaps > 1:
                 angles = np.linspace(
-                    0,
-                    2 * np.pi,
+                    0, 2 * np.pi,
                     num=n_to_overlaps,
                     endpoint=False
                 )
-                if to_coords not in angle_indices:
-                    angle_indices[to_coords] = 0
-                i = angle_indices[to_coords]
-                angle_indices[to_coords] += 1
-                x_to = to_coords[0] + 20 * np.cos(angles[i])
-                y_to = to_coords[1] + 20 * np.sin(angles[i])
+                if xy_to not in angle_indices:
+                    angle_indices[xy_to] = 0
+                i = angle_indices[xy_to]
+                angle_indices[xy_to] += 1
+                x_to += 20 * np.cos(angles[i])
+                y_to += 20 * np.sin(angles[i])
             self.add_move(x_from, y_from, x_to, y_to, label, color)

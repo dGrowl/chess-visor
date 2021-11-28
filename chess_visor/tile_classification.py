@@ -90,22 +90,22 @@ def add_text_to_board(board):
     tile_centers = np.mgrid[50:800:100,50:800:100]
     for i in range(8):
         for j in range(8):
-            coords = tile_centers[:, i, j]
+            xy = tile_centers[:, i, j]
             text_color = dark_color if is_even(i + j) else light_color
             corners = np.array(sample(corner_offsets, 2))
-            should_have_rank_text = make_decision(1 / 8)
+            should_have_rank_text = make_decision(.125)
             if should_have_rank_text:
                 draw.text(
-                    coords + corners[0],
+                    xy + corners[0],
                     choice(RANK_NAMES),
                     fill=text_color,
                     font=TILE_FONT,
                     anchor="mm"
                 )
-            should_have_file_text = make_decision(1 / 8)
+            should_have_file_text = make_decision(.125)
             if should_have_file_text:
                 draw.text(
-                    coords + corners[1],
+                    xy + corners[1],
                     choice(FILE_NAMES),
                     fill=text_color,
                     font=TILE_FONT,
@@ -113,19 +113,19 @@ def add_text_to_board(board):
                 )
 
 class ImageCache:
-    Images = dict()
+    Data = dict()
 
     @staticmethod
     def load(path):
-        if path in ImageCache.Images:
-            return ImageCache.Images[path]
+        if path in ImageCache.Data:
+            return ImageCache.Data[path]
         image = Image.open(path)
-        ImageCache.Images[path] = image
+        ImageCache.Data[path] = image
         return image
 
     @staticmethod
     def clear():
-        ImageCache.Images.clear()
+        ImageCache.Data.clear()
 
 def load_piece(image_path):
     piece_size = randrange(90, 98)
@@ -205,8 +205,7 @@ def draw_move_text(draw, xy, text_color, background_color):
         fill=background_color
     )
     draw.text(
-        xy,
-        text,
+        xy, text,
         fill=text_color,
         font=MOVE_FONT,
         anchor="mm"
@@ -220,62 +219,67 @@ def resize_board(board):
     )
     return board_resized
 
+def get_random_indices():
+    return randrange(8), randrange(8)
+
+def get_from_indices(tile_labels):
+    i_from, j_from = get_random_indices()
+    while tile_labels[i_from, j_from] == 0:
+        i_from, j_from = get_random_indices()
+
+def get_to_indices(tile_labels, color):
+    i_to, j_to = get_random_indices()
+    while get_color(tile_labels[i_to, j_to]) == color:
+        i_to, j_to = get_random_indices()
+
 def add_moves_to_board(board, tile_labels):
+    n_moves = 32
     board_size = board.size[0]
     tile_size = board_size / 8
-    half_tile_size = board_size / 16
+    half_tile_size = tile_size / 2
     moves = []
     from_squares = set()
     to_overlaps = dict()
     angle_indices = dict()
-    for _ in range(32):
-        from_file = randrange(8)
-        from_rank = randrange(8)
-        while tile_labels[from_rank, from_file] == 0:
-            from_file = randrange(8)
-            from_rank = randrange(8)
-        from_color = get_color(tile_labels[from_rank, from_file])
-        to_file = randrange(8)
-        to_rank = randrange(8)
-        while get_color(tile_labels[to_rank, to_file]) == from_color:
-            to_file = randrange(8)
-            to_rank = randrange(8)
-        coords_from = (
-            int(from_file * tile_size + half_tile_size),
-            int(from_rank * tile_size + half_tile_size)
+    for _ in range(n_moves):
+        i_from, j_from = get_from_indices(tile_labels)
+        from_color = get_color(tile_labels[i_from, j_from])
+        i_to, j_to = get_to_indices(tile_labels, from_color)
+        xy_from = (
+            int(j_from * tile_size + half_tile_size),
+            int(i_from * tile_size + half_tile_size)
         )
-        coords_to = (
-            int(to_file * tile_size + half_tile_size),
-            int(to_rank * tile_size + half_tile_size)
+        xy_to = (
+            int(j_to * tile_size + half_tile_size),
+            int(i_to * tile_size + half_tile_size)
         )
-        from_squares.add(coords_from)
-        increment_key(to_overlaps, coords_to)
-        moves.append((coords_from, coords_to, from_color))
+        from_squares.add(xy_from)
+        increment_key(to_overlaps, xy_to)
+        moves.append((xy_from, xy_to, from_color))
     draw = ImageDraw.Draw(board)
     text_graphics = []
-    for coords_from, coords_to, color in moves:
-        n_to_overlaps = to_overlaps.get(coords_to, 0)
-        if coords_to in from_squares:
+    for xy_from, xy_to, color in moves:
+        n_to_overlaps = to_overlaps.get(xy_to, 0)
+        if xy_to in from_squares:
             n_to_overlaps += 1
         if n_to_overlaps > 1:
             angles = np.linspace(
-                0,
-                2 * np.pi,
+                0, 2 * np.pi,
                 num=n_to_overlaps,
                 endpoint=False
             )
-            if coords_to not in angle_indices:
-                angle_indices[coords_to] = 0
-            i = angle_indices[coords_to]
-            angle_indices[coords_to] += 1
-            coords_to = (
-                coords_to[0] + 20 * np.cos(angles[i]),
-                coords_to[1] + 20 * np.sin(angles[i])
+            if xy_to not in angle_indices:
+                angle_indices[xy_to] = 0
+            i = angle_indices[xy_to]
+            angle_indices[xy_to] += 1
+            xy_to = (
+                xy_to[0] + 20 * np.cos(angles[i]),
+                xy_to[1] + 20 * np.sin(angles[i])
             )
         inverted_color = WHITE if color is BLACK else BLACK
-        draw_move_line(draw, coords_from, coords_to, color)
-        draw_move_circle(draw, coords_from, color)
-        text_graphics.append((coords_to, inverted_color, color))
+        draw_move_line(draw, xy_from, xy_to, color)
+        draw_move_circle(draw, xy_from, color)
+        text_graphics.append((xy_to, inverted_color, color))
     for xy, text_color, background_color in text_graphics:
         draw_move_text(draw, xy, text_color, background_color)
 
