@@ -48,7 +48,7 @@ class AnalysisJob:
 class AnalysisThread(QThread):
     new_move = Signal(AnalysisJob)
 
-    TimeLimit = chess.engine.Limit(time=0.5)
+    TimeLimit = chess.engine.Limit(time=0.35)
 
     def __init__(self, analysis_queue, engine_path):
         super().__init__()
