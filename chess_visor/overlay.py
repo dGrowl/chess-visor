@@ -115,8 +115,7 @@ class Overlay(QMainWindow):
 
     def add_source_circle(self, x, y, color):
         circle = self.scene.addEllipse(
-            x - 5 + self.screen_rect.x(),
-            y - 5 + self.screen_rect.y(),
+            x - 5, y - 5,
             10, 10,
             Overlay.GrayPenThin
         )
@@ -127,12 +126,7 @@ class Overlay(QMainWindow):
             circle.setBrush(Overlay.BlackBrush)
 
     def add_line(self, x_from, y_from, x_to, y_to, color):
-        line = QLineF(
-            x_from + self.screen_rect.x(),
-            y_from + self.screen_rect.y(),
-            x_to + self.screen_rect.x(),
-            y_to + self.screen_rect.y()
-        )
+        line = QLineF(x_from, y_from, x_to, y_to)
         line_bg_graphic = self.scene.addLine(line, pen=Overlay.GrayPenThick)
         line_bg_graphic.setZValue(-2)
         line_fg_graphic = self.scene.addLine(line)
@@ -147,16 +141,16 @@ class Overlay(QMainWindow):
         label_rect = label_graphic.boundingRect()
         label_offset_x = label_rect.width() / 2
         label_offset_y = label_rect.height() / 2
-        label_x = x_to - label_offset_x + self.screen_rect.x()
-        label_y = y_to - label_offset_y + self.screen_rect.y()
+        label_x = x_to - label_offset_x
+        label_y = y_to - label_offset_y
         label_w = label_rect.width() + 6
         label_h = label_rect.height() + 2
         label_graphic.setZValue(2)
         label_graphic.setPos(label_x, label_y)
 
         rect = QRectF(
-            x_to - label_w / 2 + self.screen_rect.x(),
-            y_to - label_h / 2 + self.screen_rect.y(),
+            x_to - label_w / 2,
+            y_to - label_h / 2,
             label_w, label_h
         )
         rect_graphic = self.scene.addRect(rect)
@@ -179,8 +173,8 @@ class Overlay(QMainWindow):
         if self.board_rect is None or self.latest_moves is None:
             return
         mapped_moves = []
-        x_board = self.board_rect.left()
-        y_board = self.board_rect.top()
+        x_board = self.screen_rect.x() + self.board_rect.x()
+        y_board = self.screen_rect.y() + self.board_rect.y()
         tile_w = self.board_rect.width() / 8
         tile_h = self.board_rect.height() / 8
         half_tile_w = tile_w / 2
