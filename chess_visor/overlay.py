@@ -86,9 +86,6 @@ class Overlay(QMainWindow):
         else:
             self.setWindowOpacity(0)
 
-    def clear(self):
-        self.scene.clear()
-
     @Slot(str)
     def set_active_screen(self, screen_name):
         active_screen = QGuiApplication.primaryScreen()
@@ -109,7 +106,7 @@ class Overlay(QMainWindow):
         self.map_moves_to_board()
 
     @Slot(np.ndarray)
-    def clear(self, _):
+    def clear(self, _=None):
         self.scene.clear()
 
     def add_move(self, x_from, y_from, x_to, y_to, label, color):
@@ -209,7 +206,7 @@ class Overlay(QMainWindow):
         self.add_moves(mapped_moves)
 
     def add_moves(self, moves):
-        self.scene.clear()
+        self.clear()
         overlaps = dict()
         from_squares = set()
         angle_indices = dict()
@@ -231,12 +228,12 @@ class Overlay(QMainWindow):
 
             if n_to_overlaps > 1:
                 angles = np.linspace(
-                    0, 2 * np.pi,
+                    -np.pi / 8, -2 * np.pi,
                     num=n_to_overlaps,
                     endpoint=False
                 )
                 i = angle_indices.setdefault(xy_to, 0)
                 angle_indices[xy_to] += 1
-                x_to += 20 * np.cos(angles[i])
-                y_to += 20 * np.sin(angles[i])
+                x_to += 27 * np.cos(angles[i])
+                y_to += 27 * np.sin(angles[i])
             self.add_move(x_from, y_from, x_to, y_to, label, color)
