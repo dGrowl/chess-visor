@@ -47,7 +47,7 @@ class Settings:
     def load_available(self):
         try:
             self.load_file()
-        except:
+        except Exception:
             self.load_defaults()
             self.save()
 

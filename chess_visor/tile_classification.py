@@ -440,7 +440,7 @@ class TileClassifier:
         for i in range(k):
             try:
                 self.model.load_weights("./tile_classifier/training/cv_weights.h5")
-            except:
+            except Exception:
                 self.model.save_weights("./tile_classifier/training/cv_weights.h5")
             print(f"Fold {i + 1}/{k}:")
             print(f"  Training Versions:   {versions_tr[i]}")
@@ -452,7 +452,7 @@ class TileClassifier:
     def load_model(self):
         try:
             self.model = load_model(TileClassifier.ModelName)
-        except:
+        except Exception:
             self.create_model()
             self.train_model()
             self.model.save(TileClassifier.ModelName)

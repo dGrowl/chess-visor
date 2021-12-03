@@ -139,7 +139,7 @@ class GameState(QObject):
             board = None
             try:
                 board = chess.Board(fen)
-            except:
+            except ValueError:
                 continue
             if self.could_be_unflipped:
                 if board.is_valid():
