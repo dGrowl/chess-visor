@@ -18,7 +18,7 @@ def convert_square_to_indices(square):
     return i, j
 
 def combine_labels(labels):
-	return '/'.join(labels)
+	return '/'.join(sorted(labels))
 
 def transform_move(move, is_game_rotated):
     square_from = move.from_square
