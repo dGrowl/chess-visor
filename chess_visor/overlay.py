@@ -1,15 +1,30 @@
-from PySide6.QtCore import QLineF, QRect, QRectF, Qt, Slot
+from PySide6.QtCore import QLineF, QPointF, QRect, QRectF, Qt, Slot
 from PySide6.QtGui import (
     QBrush, QColor, QFont, QFontDatabase,
-    QGuiApplication, QPainter, QPen
+    QGuiApplication, QPainter, QPainterPath, QPen
 )
 from PySide6.QtWidgets import (
-    QGraphicsScene, QGraphicsView, QMainWindow
+    QGraphicsLineItem, QGraphicsScene, QGraphicsView, QMainWindow
 )
 import chess
 import numpy as np
 
-from .utility import increment_key
+from .utility import increment_key, midpoint
+
+def line_angles_similar(line_a, line_b):
+    return abs(line_a.angleTo(line_b)) < 3
+
+def line_angles_opposing_and_offset(line_a, line_b):
+    return (
+        line_a.p1() != line_b.p1() and
+        abs(180. - line_a.angleTo(line_b)) < 3
+    )
+
+def should_curve_line(line, colliding_line):
+    return (
+        line_angles_similar(line, colliding_line) or
+        line_angles_opposing_and_offset(line, colliding_line)
+    )
 
 class Overlay(QMainWindow):
     Black = QColor(48, 48, 48)
@@ -109,11 +124,7 @@ class Overlay(QMainWindow):
     def clear(self, _=None):
         self.scene.clear()
 
-    def add_move(self, x_from, y_from, x_to, y_to, label, color):
-        self.add_line(x_from, y_from, x_to, y_to, color)
-        self.add_label(x_to, y_to, label, color)
-
-    def add_source_circle(self, x, y, color):
+    def draw_circle(self, x, y, color):
         circle = self.scene.addEllipse(
             x - 5, y - 5,
             10, 10,
@@ -125,18 +136,47 @@ class Overlay(QMainWindow):
         else:
             circle.setBrush(Overlay.BlackBrush)
 
-    def add_line(self, x_from, y_from, x_to, y_to, color):
-        line = QLineF(x_from, y_from, x_to, y_to)
-        line_bg_graphic = self.scene.addLine(line, pen=Overlay.GrayPenThick)
-        line_bg_graphic.setZValue(-2)
-        line_fg_graphic = self.scene.addLine(line)
-        line_fg_graphic.setZValue(-1)
+    def draw_curved_line(self, x_from, y_from, x_to, y_to, color):
+        x_mid, y_mid = midpoint(x_from, y_from, x_to, y_to)
+        second_half_line = QLineF(x_mid, y_mid, x_to, y_to)
+        perpendicular_line = second_half_line.normalVector()
+        perpendicular_line.setLength(24)
+        xy_from = QPointF(x_from, y_from)
+        curved_line = QPainterPath(xy_from)
+        curved_line.quadTo(perpendicular_line.p2(), second_half_line.p2())
+        line_background = self.scene.addPath(curved_line, pen=Overlay.GrayPenThick)
+        line_background.setZValue(-2)
+        line_foreground = self.scene.addPath(curved_line)
+        line_foreground.setZValue(-1)
         if color == chess.WHITE:
-            line_fg_graphic.setPen(Overlay.WhitePen)
+            line_foreground.setPen(Overlay.WhitePen)
         else:
-            line_fg_graphic.setPen(Overlay.BlackPen)
+            line_foreground.setPen(Overlay.BlackPen)
 
-    def add_label(self, x_to, y_to, label, color):
+    def draw_straight_line(self, x_from, y_from, x_to, y_to, color):
+        line = QLineF(x_from, y_from, x_to, y_to)
+        line_background = self.scene.addLine(line, pen=Overlay.GrayPenThick)
+        line_background.setZValue(-2)
+        line_foreground = self.scene.addLine(line)
+        line_foreground.setZValue(-1)
+        if color == chess.WHITE:
+            line_foreground.setPen(Overlay.WhitePen)
+        else:
+            line_foreground.setPen(Overlay.BlackPen)
+
+    def draw_line(self, x_from, y_from, x_to, y_to, color):
+        new_line = QLineF(x_from, y_from, x_to, y_to)
+        new_line_graphic = QGraphicsLineItem(new_line)
+        collisions = self.scene.collidingItems(new_line_graphic)
+        for colliding_graphic in collisions:
+            if colliding_graphic.type() == new_line_graphic.type():
+                if should_curve_line(new_line, colliding_graphic.line()):
+                    self.draw_curved_line(x_from, y_from, x_to, y_to, color)
+                    break
+        else:
+            self.draw_straight_line(x_from, y_from, x_to, y_to, color)
+
+    def draw_label(self, x_to, y_to, label, color):
         label_graphic = self.scene.addSimpleText(label, font=self.label_font)
         label_rect = label_graphic.boundingRect()
         label_offset_x = label_rect.width() / 2
@@ -197,37 +237,45 @@ class Overlay(QMainWindow):
                 move.label,
                 move.color
             ))
-        self.add_moves(mapped_moves)
+        self.draw_moves(mapped_moves)
 
-    def add_moves(self, moves):
+    def draw_moves(self, moves):
         self.clear()
-        overlaps = dict()
-        from_squares = set()
         angle_indices = dict()
-        for x_from, y_from, x_to, y_to, _, color in moves:
+        from_squares = set()
+        label_positions = dict()
+        overlaps = dict()
+
+        for x_from, y_from, x_to, y_to, label, color in moves:
             xy_from = (x_from, y_from)
             xy_to = (x_to, y_to)
-
-            increment_key(overlaps, xy_to)
+            label_info = (xy_to, label, color)
+            if label_info not in label_positions:
+                increment_key(overlaps, xy_to)
+                label_positions[label_info] = None
             if xy_from not in from_squares:
                 from_squares.add(xy_from)
-                self.add_source_circle(x_from, y_from, color)
+                self.draw_circle(x_from, y_from, color)
 
         for x_from, y_from, x_to, y_to, label, color in moves:
             xy_to = (x_to, y_to)
-
-            n_to_overlaps = overlaps.get(xy_to, 0)
-            if xy_to in from_squares:
-                n_to_overlaps += 1
-
-            if n_to_overlaps > 1:
-                angles = np.linspace(
-                    -np.pi / 8, -2 * np.pi,
-                    num=n_to_overlaps,
-                    endpoint=False
-                )
-                i = angle_indices.setdefault(xy_to, 0)
-                angle_indices[xy_to] += 1
-                x_to += 27 * np.cos(angles[i])
-                y_to += 27 * np.sin(angles[i])
-            self.add_move(x_from, y_from, x_to, y_to, label, color)
+            label_info = (xy_to, label, color)
+            if label_position := label_positions[label_info]:
+                x_to, y_to = label_position
+            else:
+                n_to_overlaps = overlaps.get(xy_to, 0)
+                if xy_to in from_squares:
+                    n_to_overlaps += 1
+                if n_to_overlaps > 1:
+                    angles = np.linspace(
+                        -np.pi / 4, -9 * np.pi / 4,
+                        num=n_to_overlaps,
+                        endpoint=False
+                    )
+                    i = angle_indices.setdefault(xy_to, 0)
+                    angle_indices[xy_to] += 1
+                    x_to += 26 * np.cos(angles[i])
+                    y_to += 30 * np.sin(angles[i])
+                    label_positions[label_info] = (x_to, y_to)
+                self.draw_label(x_to, y_to, label, color)
+            self.draw_line(x_from, y_from, x_to, y_to, color)
