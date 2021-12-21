@@ -16,10 +16,6 @@ def array_to_pixmap(array):
     pixmap = QPixmap(image)
     return pixmap
 
-def shuffle_deterministic(array_like, seed=7):
-    rng = np.random.default_rng(seed=seed)
-    rng.shuffle(array_like)
-
 def increment_key(d, k):
     if k not in d:
         d[k] = 1
@@ -36,11 +32,18 @@ def is_valid_hotkey(hotkey):
         return False
     return True
 
+def midpoint(x_a, y_a, x_b, y_b):
+    return .5 * (x_a + x_b), .5 * (y_a + y_b)
+
 def shift_to_front(array, i):
     if i != 0:
         item = array[i]
         array[1:i + 1] = array[0:i]
         array[0] = item
+
+def shuffle_deterministic(array_like, seed=7):
+    rng = np.random.default_rng(seed=seed)
+    rng.shuffle(array_like)
 
 def sort_on_column(array, j, reverse=False):
     return sorted(array, key=lambda entry: entry[j], reverse=reverse)
