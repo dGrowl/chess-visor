@@ -11,6 +11,16 @@ Chess Visor is intended to be used as a learning device; to allow users to revie
 
 Running `main.py` will start the program. The software will begin detection automatically and will create an icon in the system tray through which controls can be accessed. Note that only one screen can be monitored at a time.
 
+## Settings
+
+![A GUI for configuring the ChessVisor software.](./docs/settings_ui.png)
+
+To open the settings, right-click on the ChessVisor tray icon and select "Settings". From there, you can:
+* Select the monitor that should be observed
+* Manage the chess engine subprocesses
+* Change the hotkey that toggles analysis
+* Manually input the screen coordinates of the chess board
+
 ## Requirements
 
 * [Python](https://www.python.org/) compatible with TensorFlow 2.6.0 (>=3.7, <<zero-width space>3.10)
